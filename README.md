@@ -1,2 +1,2 @@
 # Political-Explanation
-Exercises in graduate-level quantitative research methods with R
+Exercises for graduate-level quantitative research methods module with R
