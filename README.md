@@ -1,2 +1,8 @@
 # Political-Explanation
-Exercises for graduate-level quantitative research methods module with R
+This execises are part of my Graduate-level Quantitative Research Methods module at University of Essex.
+
+This module offers an introduction to the theory and practice of quantitative data analysis techniques. The goals are to provide students with the skills that are necessary to: 1) read, understand, and evaluate the academic literature, and 2) design and carry out studies that employ these techniques for testing substantive theories.
+
+The module serves three principal purposes. The first is to ground students in the language of social science research: research questions, independent and dependent variables, hypotheses, causality, etc. Students will come across these terms relentlessly in this module, in other modules, and throughout social science. It is thus important that you are able to use them readily and correctly. The second purpose is to familiarise yourself with the types of data and the practice of data analysis in the social sciences. Students are introduced to a range of sources from which they can access quantitative data. Student will also be introduced to the programming language R, which is widely used by academics and practitioners for the analysis of quantitative data. I will assume that students have no prior experience with any of this software, and so students will be given a full introduction to their use. The third purpose is to introduce a series of statistical techniques for the analysis of quantitative data. Some of the techniques are fairly simple, while others (especially those covered in the final weeks of the module) are advanced. The good news is that as the work becomes more challenging, the relevance of the techniques to modern social science research becomes more apparent.
+
+I will upload my homework done during the module as part of the assessment process
