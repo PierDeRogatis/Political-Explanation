@@ -1,7 +1,7 @@
 ---
 title: "Rcode for GV900 Homework 2"
 subtitle: "GV900 Political Explanation"
-author: "My student ID: 2107091"
+author: "Pierluigi De Rogatis"
 date: "09-12-2021"
 output:
   html_document: default
