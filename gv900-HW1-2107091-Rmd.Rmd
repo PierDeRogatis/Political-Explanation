@@ -1,6 +1,6 @@
 ---
 title: "Rcode for GV900 Homework 1"
-author: 'My student ID: 2107091'
+author: 'Pierluigi De Rogatis'
 date: "13-11-2021"
 output:
   word_document: default
