@@ -1,0 +1,390 @@
+---
+title: "Rcode for GV900 HW4"
+author: 'My student ID: 2107091'
+date: "17/03/2022"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+subtitle: GV900 Political Explanation Homework 4
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+# Firstly, it will be advisable to clean the console and the environment from previously used data and values by using the following functions:
+
+rm(list=ls(all=TRUE)) 
+cat("\014")
+
+# Then, I will load some packages that I will need during the coding, to wrangle my dataset, to create regression tables, effects, arrange grapgs, and create ROC curves.
+
+library(tidyverse)
+library(stargazer)
+library(foreign)
+library(effects)
+library(gridExtra)
+library(magrittr)
+library(ROCR)
+
+# Cite: Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+
+```
+
+```{r, include = FALSE}
+
+# I will store how to reach the data set into an object called "myPath":
+
+myPath <- "C:/Users/pierl/Desktop/GV900 Offline/"
+
+# I did not include this chunk in order to cover my name in the HTML document.
+
+```
+
+```{r}
+
+# Now, I can import the data set in my console by using the "read.csv" function to read the Comma Separated Values file. Moreover, I will use the "paste0" function to concatenate all elements without a separator (source: https://r-lang.com/paste0-function-in-r-with-example/). The path to finding the data is stored in an object called "myPath":
+
+tita <- read.csv(paste0(myPath, "titanic2.csv"))
+
+```
+
+
+# 1.A LOGIT MODEL
+```{r}
+
+# To classify based on the "child" variable, I have first to assign the value of 0 or 1 to it based if it is a child (1) or not (0), and I will store it in a new column named "young". Hence:
+
+tita$young <- ifelse(tita$child == "Child", 1, 0)
+
+# I will also do a similar process for the "female" variable with female (1) and male (0), and I will store it in a new column named "gender". Hence:
+
+tita$gender <- ifelse(tita$female == "Female", 1, 0)
+
+# To estimate a logit model, I will use the "glm" (generalised linear models) function (source: https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/glm). Firstly, I will insert the formula with "survived" as DV, and "fare", "gender" and "young" are the IDVs. After that, I used the "data" argument to tell the programme from which dataset it has to collect the data. Finally, I used the "family" argument to ask for the logit regression. Further, I will store the results in an object called "logit_tita". Thus:
+
+logit_tita <- glm(survived ~ fare + gender + young,
+                  data = tita,
+                  family = binomial(link = logit))
+
+# Regarding the interpretation of the coefficients, a positive coefficient related to the "young" variable means that children are more likely to survive. Similarly, a positive coefficient related to the "gender" variable means that female passengers are more likely to survive (source: https://www.unm.edu/~schrader/biostat/bio2/Spr06/lec11.pdf)
+
+```
+
+
+# 1.B LOGGED LOGIT MODEL
+```{r}
+
+# To check if the "fare" variable is skewed, I will code an histogram. However, I will insert the code into a comment since it is not required by this assignment. Thus:
+
+# histo_fare <- ggplot(tita, aes(fare)) + geom_histogram(bins = 100)
+# print(histo_fare)
+
+# Since the "fare" variable is right-skewed, I will use the I() function to log it inside the logit regression. I added 1 to the fare variable to avoid errors and loss of observations when fare = 0. Hence:
+
+logit_tita_log <- glm(survived ~ I(log(fare + 1)) + gender + young,
+                      data = tita,
+                      family = binomial(link = logit))
+
+```
+
+
+# 1.C STARGAZER TABLE
+```{r}
+
+# To display the results of the previous two regressions, I will use the "stargazer" function with the argument "type" as text. Further, I will add some other options in the code to improve the readability of the table. Thus:
+
+stargazer(logit_tita, logit_tita_log, type = "text",
+          dep.var.labels = "Survival Probability",
+          covariate.labels = c("Fare",
+                               "Logged Fare", 
+                               "Gender",
+                               "Young"))
+
+```
+
+
+# 1.D MODEL PERFORMANCE
+```{r}
+
+# The Log-Likelihood measures the goodness of fit and is better at higher values. It associated each parameter with the probability of observing the given sample. Further, the Akaike Information Criteria (AIC) also is a function to assess goodness of fit, and it is better at lower values.
+
+# The log-likelihood is higher (smaller in absolute terms) in the logged model, and the value of the AIC (comparable since the number of observations is the same in the models) is lower in the logged model. Therefore, Model 2 (logit_tita_log), with the logged fare variable, performs better. 
+
+# Source: https://www.statology.org/interpret-log-likelihood/ ; https://www.statlect.com/glossary/log-likelihood ; https://www.scribbr.com/statistics/akaike-information-criterion/
+
+```
+
+
+# 1.E EFFECT GRAPHS
+```{r}
+
+# To calculate the marginal effect of fare on passenger survival, I have firstly to store the median value of the other IDVs and use it in the coding. Further, I will also eliminate the missing values using the "na.rm" argument. Thus, for the gender variable:
+
+med_gender = median(tita$gender, na.rm = TRUE)
+
+# For the child variable:
+
+med_young = median(tita$young, na.rm = TRUE)
+
+# Then, I will use the effect function to store the effects of the IDVs on the DV with age as its median. After that, I will create two graphs for each model, one for children and one for adults. Thus, for Model 1:
+
+eff_lr1 <- effect(term = "fare", mod = logit_tita, 
+                  given.values = c(gender = med_gender, young = med_young))
+
+# For Model 2:
+
+eff_lr2 <- effect(term = "I(log(fare + 1))", mod = logit_tita_log, 
+                  given.values = c(gender = med_gender, young = med_young))
+
+# Now, I can create the graph with the marginal effect using the "plot" function. Further, I will insert "ylim" between 0 and 1 since the survived variable (y) can contain values of either 0 or 1. Moreover, I will insert other arguments to increase the readability of the graphs. Hence, for Model 1:
+
+g_lr1 <- plot(eff_lr1, type = "response", 
+              ylim = c(0,1),
+              main = "Model 1 (Original Fare)",
+              sub = "Effect of Ticket Price (Fare)\non Survival Probability",
+              xlab = "Ticket Price (Fare)",
+              ylab = "Probability of Survival")
+
+# For Model 2:
+
+g_lr2 <- plot(eff_lr2, type = "response",
+              ylim = c(0,1),
+              main = "Model 2 (Logged Fare)",
+              sub = "Effect of Logged Ticket Price (Fare)\non Survival Probability",
+              xlab = "Ticket Price (Fare)",
+              ylab = "Probability of Survival")
+
+# Finally, I will use the "grid.arrange" function to display one graph near the other: 
+
+grid.arrange(g_lr1, g_lr2, ncol = 2)
+
+```
+
+
+```{r, include = FALSE}
+
+# However, it would be better to analyse all the possible combinations of gender and young (since they are categorical variables) with "fare". Indeed, the previous graphs showed only the comparison between the two models only in the case of male adult passengers. Therefore, I will insert the necessary code in this chunk, not included in the PDF and HTML files, to not increase the code since not required by this assignment. 
+
+# 1.a) 
+# eff1_ma <- effect(term = "fare", mod = logit_tita, 
+                  # given.values = c(gender = 0, young = 0))
+
+# g_ma1 <- plot(eff1_ma, type = "response", 
+              # ylim = c(0,1),
+              # main = "Model 1\nAdult Male",
+              # sub = "Effect of Ticket Price (Fare)\non Survival Probability",
+              # xlab = "Ticket Price (Fare)",
+              # ylab = "Probability of Survival")
+
+# 1.b) 
+# eff1_mc <- effect(term = "fare", mod = logit_tita, 
+                  # given.values = c(gender = 0, young = 1))
+
+# g_mc1 <- plot(eff1_mc, type = "response", 
+              # ylim = c(0,1),
+              # main = "Model 1\nChild Male",
+              # sub = "Effect of Ticket Price (Fare)\non Survival Probability",
+              # xlab = "Ticket Price (Fare)",
+              # ylab = "Probability of Survival")
+
+# 1.c) 
+# eff1_fa <- effect(term = "fare", mod = logit_tita, 
+                  # given.values = c(gender = 1, young = 0))
+
+# g_fa1 <- plot(eff1_fa, type = "response", 
+              # ylim = c(0,1),
+              # main = "Model 1\nAdult Female",
+              # sub = "Effect of Ticket Price (Fare)\non Survival Probability",
+              # xlab = "Ticket Price (Fare)",
+              # ylab = "Probability of Survival")
+
+# 1.d) 
+# eff1_fc <- effect(term = "fare", mod = logit_tita, 
+                  # given.values = c(gender = 1, young = 1))
+
+# g_fc1 <- plot(eff1_fc, type = "response", 
+              # ylim = c(0,1),
+              # main = "Model 1\nChild Female",
+              # sub = "Effect of Ticket Price (Fare)\non Survival Probability",
+              # xlab = "Ticket Price (Fare)",
+              # ylab = "Probability of Survival")
+
+# 2.a) 
+# eff2_ma <- effect(term = "I(log(fare + 1))", mod = logit_tita_log, 
+                  # given.values = c(gender = 0, young = 0))
+
+# g_ma2 <- plot(eff2_ma, type = "response",
+              # ylim = c(0,1),
+              # main = "Model 2 (logged)\nAdult Male",
+              # sub = "Effect of Logged Ticket Price (Fare)\non Survival Probability",
+              # xlab = "Ticket Price (Fare)",
+              # ylab = "Probability of Survival")
+
+# 2.b) 
+# eff2_mc <- effect(term = "I(log(fare + 1))", mod = logit_tita_log, 
+                  # given.values = c(gender = 0, young = 1))
+
+# g_mc2 <- plot(eff2_mc, type = "response",
+              # ylim = c(0,1),
+              # main = "Model 2 (logged)\nChild Male",
+              # sub = "Effect of Logged Ticket Price (Fare)\non Survival Probability",
+              # xlab = "Ticket Price (Fare)",
+              # ylab = "Probability of Survival")
+
+# 2.c) 
+# eff2_fa <- effect(term = "I(log(fare + 1))", mod = logit_tita_log, 
+                  # given.values = c(gender = 1, young = 0))
+
+# g_fa2 <- plot(eff2_fa, type = "response",
+              # ylim = c(0,1),
+              # main = "Model 2 (logged)\nAdult Female",
+              # sub = "Effect of Logged Ticket Price (Fare)\non Survival Probability",
+              # xlab = "Ticket Price (Fare)",
+              # ylab = "Probability of Survival")
+
+# 2.d) 
+# eff2_fc <- effect(term = "I(log(fare + 1))", mod = logit_tita_log, 
+                  # given.values = c(gender = 1, young = 1))
+
+# g_fc2 <- plot(eff2_fc, type = "response",
+              # ylim = c(0,1),
+              # main = "Model 2 (logged)\nChild Female",
+              # sub = "Effect of Logged Ticket Price (Fare)\non Survival Probability",
+              # xlab = "Ticket Price (Fare)",
+              # ylab = "Probability of Survival")
+
+# Finally, I will use the grid.arrange function to display all the correspective graph (with identical given values) one next to the other for a better comparison. Thus:
+
+# grid.arrange(g_ma1, g_ma2, g_mc1, g_mc2, g_fa1, g_fa2, g_fc1, g_fc2, ncol = 2)
+
+```
+
+
+# 1.F GRAPH COMPARISON
+```{r}
+
+# The graph with the original fare variable suggests that the effect of fare on survival is linear. A one-unit increase in the fare variable has almost the same, constant effect on the odds that the observation is a survivor when all other variables are held constant. On the other hand, the graph with the logged fare variable suggests that the effect of fare is non-linear. A one-unit increase in the fare variable has decreasing marginal effects on the odds that the observation is a survivor (1) when all other variables are held constant. Based on the model fit statistics, we should believe the second story to be more plausible (at elevated ticket costs, the increase in the probability of surviving with a one-unit increase in the fare is less than the increase in the likelihood of surviving, always with a one-unit increase in the fare for low ticket costs). 
+
+# Source: https://towardsdatascience.com/interpreting-coefficients-in-linear-and-logistic-regression-6ddf1295f6f1 ; https://www.statology.org/logistic-regression-vs-linear-regression/
+
+```
+
+
+# 1.G LOGIT MODEL FOR ROC CURVES
+```{r}
+
+# Now, I will compare the substantive importance of the logged fare variable and its predictive abilities with the ROC curves. For the ROC curve, I will first create a subset of "tita" without missing values in the fare variable, and I will store it in an object called "tita_pure". Thus:
+
+tita_pure <- subset(tita, tita$fare != "NA")
+
+# Then, I will create the training set (with 80% of the original data) and the test set (with 20% of the original). I will use the "set.seed" function to maintain the randomly selected rows constant during the code. Then, I will implement the "sample" function to have the training set. Finally, I will store the training set in an object called "train_ds" while the test set inside "test_ds". Hence:
+
+set.seed(12345)
+index <- sample(1:nrow(tita_pure), size = nrow(tita_pure)*0.80)
+train_ds <- tita_pure[index, ]
+test_ds <- tita_pure[-index, ]
+
+# After that, I will recreate another logit regression, using only the training set of variables and without the logged fare variable. Thus:
+
+train_lr1 <- glm(survived ~ gender + young,
+                 data = train_ds,
+                 family = binomial(link = logit))
+
+```
+
+
+# 1.H STARGAZER TABLE 2
+```{r}
+
+# First of all, I also need to create the predictions for the logged model to have a comparison. Thus:
+
+train_lr2 <- glm(survived ~ I(log(fare + 1)) + gender + young,
+                 data = train_ds,
+                 family = binomial(link = logit))
+
+# Now, I can compare the two logit models again. Further, I am sure that they are using the same training set since in both of them I selected as "data" argument the "train_ds" set from which to take the values, and I inserted the set.seed function to keep the randomly selected rows constant during the exercise. Thus:
+
+stargazer(train_lr1, train_lr2, type = "text",
+          dep.var.labels= "Survival Probability",
+          covariate.labels = c("Logged Fare", 
+                               "Gender",
+                               "Young"))
+
+```
+
+
+# 1.I ROC GRAPHS
+```{r}
+
+# Then, I will create the predicted probabilities for the logit models implementing the "predict" function with argument type as a response to obtain the P-hat value. Hence:
+
+pred_lr1 <- predict(train_lr1, newdata = test_ds, type = "response")
+
+pred_lr2 <- predict(train_lr2, newdata = test_ds, type = "response")
+
+# Then, I will eliminate further NA values in the columns. Thus:
+
+filtered1_ds <- data.frame(cbind(pred_lr1, test_ds$survived))
+filtered1_ds <- na.omit(filtered1_ds)
+colnames(filtered1_ds) <- c("pred_lr1", "Survived")
+
+filtered2_ds <- data.frame(cbind(pred_lr2, test_ds$survived))
+filtered2_ds <- na.omit(filtered2_ds)
+colnames(filtered2_ds) <- c("pred_lr2", "Survived")
+
+# After that, I will combine the predicted values with the actual outcomes by using the "prediction" function. Thus:
+
+prediction_lr1 <- prediction(filtered1_ds$pred_lr1, filtered1_ds$Survived)
+
+prediction_lr2 <- prediction(filtered2_ds$pred_lr2, filtered2_ds$Survived)
+
+# Finally, I will use the "performance" function to individuate the true positive rate and the false positive rate in the two models. Thus:
+
+performance_lr1 <- performance(prediction_lr1, "tpr", "fpr")
+
+performance_lr2 <- performance(prediction_lr2, "tpr", "fpr")
+
+# Now, I can plot the ROC curve using the "plot" function. I will also add the 45 degrees line using the "abline" function. I added some options to distinguish the colours of the curves to differentiate between them. Further, I also added a legend to explain the graph more comprehensively. Thus:
+
+plot(performance_lr1)
+plot(performance_lr2, add = TRUE, col = "red")
+abline(a = 0, b = 1, col="gray")
+legend("topleft",
+       c("Model 1 (No Fare)","Model 2 (Log Fare)"),
+       col = c("black","red"),
+       cex=1, lwd=3, bty="n")
+
+# Source: https://www.datatechnotes.com/2019/03/how-to-create-roc-curve-in-r.html ; https://www.journaldev.com/47626/plot-roc-curve-r-programming ; https://rviews.rstudio.com/2019/03/01/some-r-packages-for-roc-curves/ 
+
+```
+
+
+# 1.J AUC SCORES
+```{r}
+
+# To calculate and report the Area Under the ROC Curve (AUC), I will use the "performance" function, implementing the argument "auc". Further, I implemented the "@y.values" argument to contain the y values of the curve of this particular cross-validation run (source: https://www.rdocumentation.org/packages/ROCR/versions/1.0-11/topics/performance-class). Hence:
+
+auc_lr1 <- performance(prediction_lr1, "auc")@y.values
+
+auc_lr2 <- performance(prediction_lr2, "auc")@y.values
+
+# Then, I will print them:
+
+print(paste0("The AUC for Model 1 without fare is: ", auc_lr1))
+print(paste0("The AUC for Model 2 with logged fare is: ", auc_lr2))
+
+```
+
+
+# 1.K MODEL PERFORMANCE 2
+```{r}
+
+# The best model is the second model (with the logged fare variable). The ROC curve for Model 2 is "higher" and "closer to the top-left corner" than the ROC curve for Model 1, demonstrating that Model 2 is more adequate in this case. Indeed, the AUC is greater for Model 2 than for Model 1, ulteriorly confirming that Model 2 (with the logged fare) performs better than the model without the logged fare.  
+
+# Source: https://www.displayr.com/what-is-a-roc-curve-how-to-interpret-it/
+
+```
