@@ -1,5 +1,5 @@
 # Political-Explanation
-This execises are part of my Graduate-level Quantitative Research Methods module at University of Essex.
+This execises are part of my Graduate-level Quantitative Research Methods module at University of Essex, passed with full distinction (97%).
 
 This module offers an introduction to the theory and practice of quantitative data analysis techniques. The goals are to provide students with the skills that are necessary to: 1) read, understand, and evaluate the academic literature, and 2) design and carry out studies that employ these techniques for testing substantive theories.
 
